@@ -17,3 +17,8 @@ Whale_Archives/
 
 # System
 .DS_Store
+
+# 交付物文档（本地留存）
+DEVELOPMENT_STORY.md
+DEVELOPMENT_STORY_old.md
+LEARNING_NOTES.md
