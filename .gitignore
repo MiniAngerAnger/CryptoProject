@@ -1,0 +1,19 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+venv/
+.venv/
+
+# API Keys & Secrets
+*.env
+.env
+
+# Data Archives
+Whale_Archives/
+
+# IDE
+.obsidian/
+
+# System
+.DS_Store
