@@ -1,4 +1,4 @@
-# Python
+# Python 环境
 __pycache__/
 *.pyc
 *.pyo
@@ -9,18 +9,20 @@ venv/
 *.env
 .env
 
-# Data Archives
+# 数据库文件（本地运行产物）
+db/*.db
+
+# 数据归档
 Whale_Archives/
+data/raw/
+data/processed/
 
-# IDE
+# IDE & 系统
 .obsidian/
-
-# System
 .DS_Store
 
-# 交付物文档（本地留存）
+# 交付物文档（本地留存，不提交）
 DEVELOPMENT_STORY.md
-DEVELOPMENT_STORY_old.md
 LEARNING_NOTES.md
 *KEY*
 *.key
