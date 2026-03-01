@@ -3,9 +3,11 @@ import time
 import os
 import yfinance as yf
 from datetime import datetime
+from pathlib import Path
 
 # --- 【1. 自动化配置区】 ---
-SAVE_DIR = "/Users/moody/Downloads/MY AI/CryptoProject/Whale_Archives"
+BASE_DIR = Path(__file__).resolve().parent
+SAVE_DIR = str(BASE_DIR / "Whale_Archives")
 WHALE_THRESHOLD = 100  # 监控阈值：100 ETH
 # 你的专属 Etherscan V2 专线
 API_KEY = os.getenv("ETHERSCAN_API_KEY", "")
