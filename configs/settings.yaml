@@ -47,6 +47,12 @@ risk:
   max_notional_pct: 0.2          # 单笔最多用 20% 现金
   min_trade_usd: 50
 
+sentiment:
+  enabled: true
+  interval_seconds: 300          # 每 5 分钟拉取一次（F&G 指数无需高频）
+  min_news_score: -0.3           # 新闻情绪低于此值时额外谨慎（预留，当前为空实现）
+  fear_greed_block_greed_above: 75  # F&G > 75 视为 extreme_greed，buy 信号降级为 hold
+
 # 链上地址标签库（小写地址 → 可读名称）
 address_tags:
   "0x4dbd4fc535ac27206064b68ffcf827b0a60bab3f": "🔶 币安-14 (Binance)"

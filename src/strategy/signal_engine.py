@@ -33,10 +33,12 @@ def _ema(values: list[float], period: int) -> float:
 class SignalEngine:
     def __init__(self, settings: dict, kronos: KronosAdapter | None = None):
         strat = settings.get("strategy", {})
+        sent = settings.get("sentiment", {})
         self.mode = strat.get("mode", "baseline")  # baseline | kronos | hybrid
         self.fast = int(strat.get("ema_fast", 9))
         self.slow = int(strat.get("ema_slow", 21))
         self.kronos_threshold = float(strat.get("kronos_threshold", 0.003))  # 0.3%
+        self.block_greed_above = int(sent.get("fear_greed_block_greed_above", 75))
         self.kronos = kronos
 
     def _baseline_signal(self, closes: list[float]) -> SignalResult:
@@ -81,3 +83,26 @@ class SignalEngine:
             return SignalResult(k_signal, f"hybrid_ok base={base.reason},delta={delta:.4f}", "hybrid")
 
         return SignalResult("hold", f"hybrid_block base={base.signal},k={k_signal},delta={delta:.4f}", "hybrid")
+
+    def apply_sentiment_filter(self, signal: SignalResult, sentiment_row) -> SignalResult:
+        """消息面过滤：
+        - extreme_greed 且 buy -> hold
+        - extreme_fear 且 buy -> 保留 buy（交给 risk 层决定仓位）
+        - sell 不拦截
+        """
+        if not sentiment_row:
+            return signal
+
+        if signal.signal != "buy":
+            return signal
+
+        fg = sentiment_row["fear_greed_value"]
+        regime = (sentiment_row["regime"] or "").lower()
+
+        if regime == "extreme_greed" or (fg is not None and int(fg) >= self.block_greed_above):
+            return SignalResult("hold", f"sentiment_block_greed fg={fg}", "sentiment_filter")
+
+        if regime == "extreme_fear":
+            return SignalResult("buy", f"sentiment_allow_fear fg={fg}", signal.source)
+
+        return signal

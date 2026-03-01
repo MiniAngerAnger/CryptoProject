@@ -96,6 +96,15 @@ def init_tables(conn: sqlite3.Connection):
             equity_usd    REAL    NOT NULL,
             note          TEXT
         );
+
+        CREATE TABLE IF NOT EXISTS sentiment_snapshots (
+            id               INTEGER PRIMARY KEY AUTOINCREMENT,
+            ts               TEXT    NOT NULL,
+            fear_greed_value INTEGER,
+            news_score       REAL,
+            regime           TEXT,
+            source           TEXT
+        );
         """
     )
     _add_column_if_missing(conn, "price_ticks", "change_24h", "REAL")
@@ -248,3 +257,26 @@ def insert_equity(conn, balance_usd: float, position_usd: float, note: str = "")
 def query_latest_equity(conn):
     cur = conn.execute("SELECT * FROM equity_curve ORDER BY id DESC LIMIT 1")
     return cur.fetchone()
+
+
+# ─── sentiment ───────────────────────────────────────────────────────────────
+
+def insert_sentiment_snapshot(conn, fear_greed_value: int | None,
+                              news_score: float | None,
+                              regime: str,
+                              source: str = ""):
+    conn.execute(
+        "INSERT INTO sentiment_snapshots (ts, fear_greed_value, news_score, regime, source) VALUES (?, ?, ?, ?, ?)",
+        (datetime.utcnow().isoformat(), fear_greed_value, news_score, regime, source),
+    )
+    conn.commit()
+
+
+def query_latest_sentiment(conn):
+    cur = conn.execute("SELECT * FROM sentiment_snapshots ORDER BY id DESC LIMIT 1")
+    return cur.fetchone()
+
+
+def query_sentiment_snapshots(conn, limit: int = 50):
+    cur = conn.execute("SELECT * FROM sentiment_snapshots ORDER BY id DESC LIMIT ?", (limit,))
+    return cur.fetchall()

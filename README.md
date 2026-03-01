@@ -144,10 +144,11 @@ system_health    -- 模块运行状态日志
 ## V1.5 新增：Paper Trading 闭环（实验版）
 
 已新增：
-- `strategy/signal_engine.py`：baseline / kronos / hybrid 信号模式
+- `strategy/signal_engine.py`：baseline / kronos / hybrid 信号模式 + sentiment 过滤
 - `execution/paper_broker.py`：模拟下单、仓位、资金曲线
 - `risk/risk_guard.py`：单笔仓位和最小下单金额风控
-- `storage/db.py`：新增 `orders` / `fills` / `positions` / `equity_curve` 表
+- `storage/db.py`：新增 `orders` / `fills` / `positions` / `equity_curve` / `sentiment_snapshots` 表
+- `ingest/sentiment_feed.py`：Fear & Greed 指数采集（L1）+ 新闻情绪预留接口
 
 配置入口：`configs/settings.yaml`
 - `trading.*`

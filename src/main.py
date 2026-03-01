@@ -19,7 +19,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_ROOT))
 
 from src.storage import db
-from src.ingest import price_feed, onchain_feed
+from src.ingest import price_feed, onchain_feed, sentiment_feed
 from src.models.kronos_adapter import KronosAdapter, KronosConfig
 from src.strategy.signal_engine import SignalEngine
 from src.execution.paper_broker import PaperBroker
@@ -88,7 +88,9 @@ def trading_loop(conn, settings: dict):
             continue
 
         last_price = closes[-1]
-        sig = signal_engine.generate(closes)
+        sig_raw = signal_engine.generate(closes)
+        sentiment = db.query_latest_sentiment(conn)
+        sig = signal_engine.apply_sentiment_filter(sig_raw, sentiment)
         qty, _ = broker.get_position(symbol)
 
         acted = "hold"
@@ -112,11 +114,13 @@ def trading_loop(conn, settings: dict):
                 note = "broker_reject"
 
         broker.mark_equity(symbol, last_price, note=f"sig={sig.signal},act={acted}")
+        fg = sentiment["fear_greed_value"] if sentiment else None
+        regime = sentiment["regime"] if sentiment else "na"
         db.log_health(
             conn,
             "trading",
             "ok",
-            f"{symbol} p={last_price:.2f} sig={sig.signal} src={sig.source} act={acted} cash={broker.cash_usd:.2f}",
+            f"{symbol} p={last_price:.2f} sig={sig.signal} src={sig.source} act={acted} fg={fg} regime={regime} cash={broker.cash_usd:.2f}",
         )
 
         logger.info(
@@ -140,6 +144,7 @@ def main():
 
     run_in_thread(price_feed.run, conn, settings, name="price_feed")
     run_in_thread(onchain_feed.run, conn, settings, name="onchain_feed")
+    run_in_thread(sentiment_feed.run, conn, settings, name="sentiment_feed")
     run_in_thread(trading_loop, conn, settings, name="trading_loop")
 
     logger.info("所有模块已启动。按 Ctrl+C 退出。")
