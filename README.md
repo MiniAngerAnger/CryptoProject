@@ -20,8 +20,7 @@ source venv/bin/activate  # Windows 使用 venv\\Scripts\\activate
 
 ### 1.3 配置 API Key
 
-- `BINANCE_API_KEY01..env`
-- `GEMINI_API_KEY.env`
+- 环境变量：`ETHERSCAN_API_KEY` / `BINANCE_API_KEY` / `BINANCE_SECRET_KEY` / `GEMINI_API_KEY`
 
 按照文件中的格式填入自己的密钥（注意：不要把真 `.env` 提交到 Git 仓库）。
 
@@ -43,8 +42,8 @@ CryptoProject/
 ├── Whale_Archives/         # 历史鲸鱼地址数据
 ├── DEVELOPMENT_STORY.md    # 开发故事记录
 ├── LEARNING_NOTES.md       # 学习记录
-├── BINANCE_API_KEY01..env  # Binance API Key (本地配置)
-└── GEMINI_API_KEY.env      # Gemini API Key (本地配置)
+├── .env.example            # 环境变量模板（不含真实密钥）
+└── whale_v2.py             # 主脚本
 ```
 
 ---

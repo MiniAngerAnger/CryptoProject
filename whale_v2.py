@@ -8,7 +8,7 @@ from datetime import datetime
 SAVE_DIR = "/Users/moody/Downloads/MY AI/CryptoProject/Whale_Archives"
 WHALE_THRESHOLD = 100  # 监控阈值：100 ETH
 # 你的专属 Etherscan V2 专线
-API_KEY = "UGYEMX4ZHG5M5E4YE9A86EP9YDFUKNDQSD"
+API_KEY = os.getenv("ETHERSCAN_API_KEY", "")
 ETH_RPC_URL = f"https://api.etherscan.io/v2/api?chainid=1&apikey={API_KEY}"
 
 # 核心地址库（自动打标签）
@@ -62,7 +62,7 @@ timestamp: {timestamp}
 
 # --- 【3. 监控主逻辑】 ---
 def monitor_whale():
-    print(f"🚀 巨鲸雷达【专线版】已启动 | API KEY: {API_KEY[:5]}***")
+    print("🚀 巨鲸雷达【专线版】已启动")
     last_block = 0
     while True:
         try:
