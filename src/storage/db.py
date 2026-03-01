@@ -7,7 +7,7 @@ src/storage/db.py — SQLite 数据库层
 """
 
 import sqlite3
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -104,6 +104,17 @@ def init_tables(conn: sqlite3.Connection):
             news_score       REAL,
             regime           TEXT,
             source           TEXT
+        );
+
+        CREATE TABLE IF NOT EXISTS news_events (
+            id           INTEGER PRIMARY KEY AUTOINCREMENT,
+            ts           TEXT    NOT NULL,
+            symbol       TEXT    NOT NULL,
+            title        TEXT    NOT NULL,
+            source       TEXT,
+            url          TEXT    UNIQUE,
+            published_at TEXT,
+            score        REAL
         );
         """
     )
@@ -279,4 +290,63 @@ def query_latest_sentiment(conn):
 
 def query_sentiment_snapshots(conn, limit: int = 50):
     cur = conn.execute("SELECT * FROM sentiment_snapshots ORDER BY id DESC LIMIT ?", (limit,))
+    return cur.fetchall()
+
+
+# ─── news_events ──────────────────────────────────────────────────────────────
+
+def insert_news_event(conn, symbol: str, title: str, source: str,
+                      url: str, published_at: str, score: float) -> bool:
+    """插入一条新闻记录，URL 唯一约束，重复时静默跳过返回 False"""
+    try:
+        conn.execute(
+            "INSERT INTO news_events (ts, symbol, title, source, url, published_at, score) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (datetime.utcnow().isoformat(), symbol, title, source, url, published_at, score),
+        )
+        conn.commit()
+        return True
+    except sqlite3.IntegrityError:
+        return False  # URL 已存在，跳过
+
+
+def query_news_events(conn, limit: int = 10, symbol: str | None = None):
+    """查询最近新闻，可选按 symbol 过滤"""
+    if symbol:
+        cur = conn.execute(
+            "SELECT * FROM news_events WHERE symbol=? ORDER BY id DESC LIMIT ?",
+            (symbol, limit),
+        )
+    else:
+        cur = conn.execute(
+            "SELECT * FROM news_events ORDER BY id DESC LIMIT ?",
+            (limit,),
+        )
+    return cur.fetchall()
+
+
+def query_recent_news_scores(conn, hours: int = 1) -> list[float]:
+    """取最近 N 小时内的新闻评分列表，供 sentiment_feed 聚合用"""
+    since = (datetime.utcnow() - timedelta(hours=hours)).isoformat()
+    cur = conn.execute(
+        "SELECT score FROM news_events WHERE ts >= ? AND score IS NOT NULL",
+        (since,),
+    )
+    return [float(r["score"]) for r in cur.fetchall()]
+
+
+# ─── dashboard 辅助查询 ────────────────────────────────────────────────────────
+
+def query_recent_orders(conn, limit: int = 5):
+    """查询最近 N 笔订单（含 fill_price，JOIN fills 取成交价）"""
+    cur = conn.execute(
+        """
+        SELECT o.ts, o.symbol, o.side, o.qty, o.signal_source, o.note,
+               f.fill_price, f.fee_usd
+        FROM orders o
+        LEFT JOIN fills f ON f.order_id = o.id
+        ORDER BY o.id DESC LIMIT ?
+        """,
+        (limit,),
+    )
     return cur.fetchall()

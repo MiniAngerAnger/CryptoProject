@@ -18,8 +18,15 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_ROOT))
 
+# 自动加载 .env 文件（优先于系统环境变量），python-dotenv 可选依赖
+try:
+    from dotenv import load_dotenv
+    load_dotenv(PROJECT_ROOT / ".env")
+except ImportError:
+    pass  # 未安装 python-dotenv 时跳过，依赖 shell 环境变量
+
 from src.storage import db
-from src.ingest import price_feed, onchain_feed, sentiment_feed
+from src.ingest import price_feed, onchain_feed, sentiment_feed, news_feed
 from src.models.kronos_adapter import KronosAdapter, KronosConfig
 from src.strategy.signal_engine import SignalEngine
 from src.execution.paper_broker import PaperBroker
@@ -116,15 +123,18 @@ def trading_loop(conn, settings: dict):
         broker.mark_equity(symbol, last_price, note=f"sig={sig.signal},act={acted}")
         fg = sentiment["fear_greed_value"] if sentiment else None
         regime = sentiment["regime"] if sentiment else "na"
+        news_sc = sentiment["news_score"] if sentiment else None
         db.log_health(
             conn,
             "trading",
             "ok",
-            f"{symbol} p={last_price:.2f} sig={sig.signal} src={sig.source} act={acted} fg={fg} regime={regime} cash={broker.cash_usd:.2f}",
+            f"{symbol} p={last_price:.2f} sig={sig.signal} src={sig.source} act={acted} "
+            f"fg={fg} regime={regime} news={news_sc} cash={broker.cash_usd:.2f}",
         )
 
         logger.info(
-            f"[trading] {symbol} ${last_price:,.2f} sig={sig.signal}/{sig.source} act={acted} cash=${broker.cash_usd:,.2f}"
+            f"[trading] {symbol} ${last_price:,.2f} sig={sig.signal}/{sig.source} "
+            f"act={acted} fg={fg} news={news_sc} cash=${broker.cash_usd:,.2f}"
         )
 
         time.sleep(interval)
@@ -144,7 +154,8 @@ def main():
 
     run_in_thread(price_feed.run, conn, settings, name="price_feed")
     run_in_thread(onchain_feed.run, conn, settings, name="onchain_feed")
-    run_in_thread(sentiment_feed.run, conn, settings, name="sentiment_feed")
+    run_in_thread(news_feed.run, conn, settings, name="news_feed")        # L2：新闻采集
+    run_in_thread(sentiment_feed.run, conn, settings, name="sentiment_feed")  # L1+L2：情绪聚合
     run_in_thread(trading_loop, conn, settings, name="trading_loop")
 
     logger.info("所有模块已启动。按 Ctrl+C 退出。")

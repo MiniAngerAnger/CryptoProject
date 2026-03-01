@@ -39,6 +39,8 @@ class SignalEngine:
         self.slow = int(strat.get("ema_slow", 21))
         self.kronos_threshold = float(strat.get("kronos_threshold", 0.003))  # 0.3%
         self.block_greed_above = int(sent.get("fear_greed_block_greed_above", 75))
+        # news_score 低于此阈值时 buy 降级为 hold（-0.3 默认允许轻度负面情绪）
+        self.min_news_score = float(sent.get("min_news_score", -0.3))
         self.kronos = kronos
 
     def _baseline_signal(self, closes: list[float]) -> SignalResult:
@@ -85,23 +87,37 @@ class SignalEngine:
         return SignalResult("hold", f"hybrid_block base={base.signal},k={k_signal},delta={delta:.4f}", "hybrid")
 
     def apply_sentiment_filter(self, signal: SignalResult, sentiment_row) -> SignalResult:
-        """消息面过滤：
-        - extreme_greed 且 buy -> hold
-        - extreme_fear 且 buy -> 保留 buy（交给 risk 层决定仓位）
-        - sell 不拦截
+        """消息面过滤（L1 + L2）：
+
+        过滤顺序（仅对 buy 信号生效，sell 不拦截）：
+        1. extreme_greed（F&G > block_greed_above）→ hold（避免高位接盘）
+        2. news_score < min_news_score           → hold（新闻情绪过差时不买）
+        3. extreme_fear                          → 保留 buy（反向机会，交风控决定仓位）
         """
         if not sentiment_row:
             return signal
 
         if signal.signal != "buy":
+            # sell 信号直接放行，不受情绪限制
             return signal
 
         fg = sentiment_row["fear_greed_value"]
         regime = (sentiment_row["regime"] or "").lower()
+        news_score = sentiment_row["news_score"]
 
+        # L1 过滤：极度贪婪时不买
         if regime == "extreme_greed" or (fg is not None and int(fg) >= self.block_greed_above):
             return SignalResult("hold", f"sentiment_block_greed fg={fg}", "sentiment_filter")
 
+        # L2 过滤：新闻情绪低于阈值时不买
+        if news_score is not None and news_score < self.min_news_score:
+            return SignalResult(
+                "hold",
+                f"news_filter score={news_score:.3f}<{self.min_news_score}",
+                "sentiment_filter",
+            )
+
+        # 极度恐惧：保留 buy（反向机会）
         if regime == "extreme_fear":
             return SignalResult("buy", f"sentiment_allow_fear fg={fg}", signal.source)
 

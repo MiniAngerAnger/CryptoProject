@@ -50,8 +50,13 @@ risk:
 sentiment:
   enabled: true
   interval_seconds: 300          # 每 5 分钟拉取一次（F&G 指数无需高频）
-  min_news_score: -0.3           # 新闻情绪低于此值时额外谨慎（预留，当前为空实现）
+  min_news_score: -0.3           # news_score 低于此值时 buy 降级为 hold
   fear_greed_block_greed_above: 75  # F&G > 75 视为 extreme_greed，buy 信号降级为 hold
+
+news:
+  enabled: true
+  interval_seconds: 3600         # 每小时一次（免费版 100次/天限额，24次/天安全）
+  symbols: ["BTC", "ETH", "SOL", "BNB"]  # 仅用于记录，实际用宽泛查询一次覆盖
 
 # 链上地址标签库（小写地址 → 可读名称）
 address_tags:
